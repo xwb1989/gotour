@@ -1,4 +1,4 @@
-//File_name: slices.go
+//File_name: rot13reader.go
 //Author: Wenbin Xiao
 //Description: http://tour.golang.org/#63
 
