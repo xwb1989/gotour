@@ -1,11 +1,12 @@
-//File_name: equivalent_binary_tree.go
+//File_name: webcrawler.go
 //Author: Wenbin Xiao
-//Description: http://tour.golang.org/#63
+//Description: http://tour.golang.org/#73
 
 package main
 
 import (
 	"fmt"
+	"time"
 )
 
 type Fetcher interface {
@@ -17,22 +18,48 @@ type Fetcher interface {
 // Crawl uses fetcher to recursively crawl
 // pages starting with url, to a maximum of depth.
 func Crawl(url string, depth int, fetcher Fetcher) {
-	// TODO: Fetch URLs in parallel.
-	// TODO: Don't fetch the same URL twice.
-	// This implementation doesn't do either:
-	if depth <= 0 {
+	//map to record the fecthed-or-not state and a lock to synchronize
+	fetched := make(map[string]bool)
+	fetched_lock := make(chan int, 1)
+	fetched_lock <- 1
+
+	//Function to help fetch
+	var fetch func(url string, depth int)
+	fetch = func(url string, depth int) {
+		//Get the lock
+		<-fetched_lock
+		//Release the lock when this function exits
+		defer func() {
+			fetched_lock <- 1
+		}()
+
+		//Check whether fetched
+		if _, ok := fetched[url]; ok {
+			return
+		}
+		fetched[url] = true
+
+		//Check depth
+		if depth <= 0 {
+			return
+		}
+		body, urls, err := fetcher.Fetch(url)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		//Found
+		fmt.Printf("found: %s %q\n", url, body)
+		//Crawl to others
+		for _, u := range urls {
+			go fetch(u, depth-1)
+		}
 		return
 	}
-	body, urls, err := fetcher.Fetch(url)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Printf("found: %s %q\n", url, body)
-	for _, u := range urls {
-		Crawl(u, depth-1, fetcher)
-	}
-	return
+	//Start the crawling
+	go fetch(url, depth)
+	time.Sleep(1 * time.Second)
 }
 
 func main() {
